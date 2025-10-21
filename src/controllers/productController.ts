@@ -53,6 +53,7 @@ export const createProductByUrl = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: "Failed to create product by URL",
+      error: error instanceof Error ? error.message : String(error),
     });
   }
 };
