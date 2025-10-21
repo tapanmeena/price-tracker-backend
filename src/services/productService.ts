@@ -15,6 +15,19 @@ class ProductService {
     return await product.save();
   }
 
+  // Create product by URL
+  async createProductByUrl(url: string): Promise<IProduct> {
+    // Check if product with the same URL already exists
+    const existingProduct = await this.findProductByUrl(url);
+
+    if (existingProduct) {
+      throw new Error("Product with this URL already exists");
+    }
+
+    const product = new ProductModel({ url, doesMetadataUpdated: false, name: "Unknown", currentPrice: 0 });
+    return await product.save();
+  }
+
   // Find product by URL
   async findProductByUrl(url: string): Promise<IProduct | null> {
     return await ProductModel.findOne({ url });

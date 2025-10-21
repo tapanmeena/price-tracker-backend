@@ -37,6 +37,26 @@ export const createProduct = async (req: Request, res: Response) => {
   }
 };
 
+export const createProductByUrl = async (req: Request, res: Response) => {
+  try {
+    const { url } = req.body;
+
+    const product = await productService.createProductByUrl(url);
+
+    res.status(201).json({
+      success: true,
+      message: "Product created successfully",
+      data: product,
+    });
+  } catch (error) {
+    console.log(`Error creating product by URL: ${error}`);
+    res.status(500).json({
+      success: false,
+      message: "Failed to create product by URL",
+    });
+  }
+};
+
 export const getAllProducts = async (req: Request, res: Response) => {
   try {
     const products = await productService.getAllProducts();
