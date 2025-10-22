@@ -1,4 +1,5 @@
 import { ProductModel, IProduct } from "../models/Product";
+import scraperService from "./scraperService";
 
 class ProductService {
   // Create a new product
@@ -24,7 +25,26 @@ class ProductService {
       throw new Error("Product with this URL already exists");
     }
 
-    const product = new ProductModel({ url, doesMetadataUpdated: false, name: "Unknown", currentPrice: 0 });
+    const scrapedData = await scraperService.scrapeProduct(url);
+
+    const productData: Partial<IProduct> = {
+      name: scrapedData.name || "Unknown",
+      image: scrapedData.image,
+      url,
+      currency: scrapedData.currency || "INR",
+      availability: scrapedData.availability || "InStock",
+      // availability: (scrapedData.availability as "In Stock" | "Out of Stock" | "Limited Stock" | "Pre-Order") || "In Stock",
+      currentPrice: scrapedData.price || 0,
+      priceHistory: [
+        {
+          price: scrapedData.price || 0,
+          date: new Date(),
+        },
+      ],
+      createdAt: new Date(),
+    };
+
+    const product = new ProductModel({ doesMetadataUpdated: true, ...productData });
     return await product.save();
   }
 

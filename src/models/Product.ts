@@ -27,12 +27,30 @@ export type IProductInput = z.infer<typeof ProductSchema>;
 export const UpdateProductSchema = ProductSchema.partial();
 
 // MongoDB Document Interface
+/**
+ * Represents a product in the price tracker system.
+ *
+ * @interface IProduct
+ * @extends Document
+ *
+ * @property {string} name - The name of the product.
+ * @property {string} [image] - The URL of the product's image (optional).
+ * @property {string} url - The URL where the product can be found.
+ * @property {string} currency - The currency in which the product's price is listed.
+ * @property {"In Stock" | "Out of Stock" | "Limited Stock" | "Pre-Order"} availability - The current availability status of the product.
+ * @property {number} currentPrice - The current price of the product.
+ * @property {number} [targetPrice] - The target price for the product (optional).
+ * @property {IPriceHistory[]} [priceHistory] - An array of price history records for the product (optional).
+ * @property {Date} createdAt - The date when the product was created.
+ * @property {Date} updatedAt - The date when the product was last updated.
+ * @property {boolean} [doesMetadataUpdated] - Indicates whether the product's metadata has been updated (optional).
+ */
 export interface IProduct extends Document {
   name: string;
   image?: string;
   url: string;
   currency: string;
-  availability: "In Stock" | "Out of Stock" | "Limited Stock" | "Pre-Order";
+  availability: string; //"In Stock" | "Out of Stock" | "Limited Stock" | "Pre-Order";
   currentPrice: number;
   targetPrice?: number;
   priceHistory?: IPriceHistory[];
@@ -65,8 +83,9 @@ const productSchema = new Schema<IProduct>(
     },
     availability: {
       type: String,
-      enum: ["In Stock", "Out of Stock", "Limited Stock", "Pre-Order"],
-      default: "In Stock",
+      //   enum: ["In Stock", "Out of Stock", "Limited Stock", "Pre-Order"],
+      trim: true,
+      default: "InStock",
     },
     currentPrice: {
       type: Number,
