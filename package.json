@@ -9,7 +9,10 @@
     "start": "node dist/index.js"
   },
   "keywords": [],
-  "author": "",
+  "author": {
+    "name": "Tapan Meena",
+    "email": "tapanmeena1998@gmail.com"
+  },
   "license": "ISC",
   "packageManager": "pnpm@10.17.0",
   "dependencies": {
