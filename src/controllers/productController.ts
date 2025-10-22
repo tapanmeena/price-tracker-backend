@@ -1,14 +1,18 @@
 import { Request, Response } from "express";
 import productService from "../services/productService";
+import { getDomain } from "../utils/scraperUtils";
 
 export const createProduct = async (req: Request, res: Response) => {
   try {
     // At this point, req.body is validated by the middleware
     const { name, url, currentPrice, targetPrice } = req.body;
 
+    const domain = getDomain(url) || "unknown.com";
+
     // Create product using service
     const product = await productService.createProduct({
       name,
+      domain,
       url,
       currentPrice,
       targetPrice,
@@ -39,14 +43,17 @@ export const createProduct = async (req: Request, res: Response) => {
 
 export const createProductByUrl = async (req: Request, res: Response) => {
   try {
-    const { url } = req.body;
-
-    const product = await productService.createProductByUrl(url);
+    const { urls } = req.body;
+    const products = [];
+    for (const url of urls) {
+      const product = await productService.createProductByUrl(url);
+      products.push(product);
+    }
 
     res.status(201).json({
       success: true,
-      message: "Product created successfully",
-      data: product,
+      message: "Products created successfully",
+      data: products,
     });
   } catch (error) {
     console.log(`Error creating product by URL: ${error}`);

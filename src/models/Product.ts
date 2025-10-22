@@ -49,6 +49,7 @@ export interface IProduct extends Document {
   name: string;
   image?: string;
   url: string;
+  domain: string;
   currency: string;
   availability: string; //"In Stock" | "Out of Stock" | "Limited Stock" | "Pre-Order";
   currentPrice: number;
@@ -79,6 +80,11 @@ const productSchema = new Schema<IProduct>(
       required: true,
       unique: true,
       trim: true,
+    },
+    domain: {
+      type: String,
+      required: true,
+      trime: true,
     },
     currency: {
       type: String,

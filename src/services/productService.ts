@@ -1,10 +1,11 @@
 import { ObjectId } from "mongoose";
 import { ProductModel, IProduct } from "../models/Product";
 import scraperService from "./scraperService";
+import { getDomain } from "../utils/scraperUtils";
 
 class ProductService {
   // Create a new product
-  async createProduct(productData: { name: string; url: string; currentPrice: number; targetPrice?: number }): Promise<IProduct> {
+  async createProduct(productData: { name: string; url: string; currentPrice: number; domain: string; targetPrice?: number }): Promise<IProduct> {
     // Check if product with the same URL already exists
     const existingProduct = await this.findProductByUrl(productData.url);
 
@@ -12,8 +13,10 @@ class ProductService {
       throw new Error("Product with this URL already exists");
     }
 
+    const domain = getDomain(productData.url) || "unknown.com";
+
     // Create and save the product
-    const product = new ProductModel(productData);
+    const product = new ProductModel({ ...productData, domain });
     return await product.save();
   }
 
@@ -23,15 +26,18 @@ class ProductService {
     const existingProduct = await this.findProductByUrl(url);
 
     if (existingProduct) {
-      throw new Error("Product with this URL already exists");
+      return existingProduct;
     }
 
     const scrapedData = await scraperService.scrapeProduct(url);
+
+    const domain = getDomain(url) || "unknown.com";
 
     const productData: Partial<IProduct> = {
       name: scrapedData.name || "Unknown",
       image: scrapedData.image,
       url,
+      domain,
       currency: scrapedData.currency || "INR",
       availability: scrapedData.availability || "InStock",
       sku: scrapedData.sku || undefined,
