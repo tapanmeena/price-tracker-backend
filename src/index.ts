@@ -2,6 +2,7 @@ import express from "express";
 import os from "os";
 import productRouter from "./routes/productRoutes";
 import { connectDB } from "./config/dbConfig";
+import schedulerRouter from "./routes/schedulerRoutes";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -9,7 +10,8 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 
 // Routes
-app.use("/api", productRouter);
+app.use("/api/products", productRouter);
+app.use("/api/schedule", schedulerRouter);
 
 // Connect to MongoDB and start server
 connectDB().then(() => {

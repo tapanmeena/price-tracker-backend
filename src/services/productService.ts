@@ -1,3 +1,4 @@
+import { ObjectId } from "mongoose";
 import { ProductModel, IProduct } from "../models/Product";
 import scraperService from "./scraperService";
 
@@ -33,6 +34,8 @@ class ProductService {
       url,
       currency: scrapedData.currency || "INR",
       availability: scrapedData.availability || "InStock",
+      sku: scrapedData.sku || undefined,
+      mpn: scrapedData.mpn || undefined,
       // availability: (scrapedData.availability as "In Stock" | "Out of Stock" | "Limited Stock" | "Pre-Order") || "In Stock",
       currentPrice: scrapedData.price || 0,
       priceHistory: [
@@ -66,6 +69,21 @@ class ProductService {
   // Update product
   async updateProduct(id: string, updateData: Partial<IProduct>): Promise<IProduct | null> {
     return await ProductModel.findByIdAndUpdate(id, updateData, { new: true });
+  }
+
+  // Update product price
+  async updateProductPrice(id: string, updatedPrice: number): Promise<IProduct | null> {
+    return await ProductModel.findByIdAndUpdate(
+      id,
+      {
+        currentPrice: updatedPrice,
+      },
+      { new: true }
+    );
+  }
+
+  async updateLastChecked(objectIds: ObjectId[]): Promise<void> {
+    await ProductModel.updateMany({ _id: { $in: objectIds } }, { $set: { lastChecked: new Date() } });
   }
 
   // Delete product

@@ -57,6 +57,9 @@ export interface IProduct extends Document {
   createdAt: Date;
   updatedAt: Date;
   doesMetadataUpdated?: boolean;
+  lastChecked?: Date;
+  sku?: string;
+  mpn?: string;
 }
 
 // MongoDB Schema
@@ -106,9 +109,19 @@ const productSchema = new Schema<IProduct>(
         },
       },
     ],
+    sku: {
+      type: String,
+    },
+    mpn: {
+      type: String,
+    },
     doesMetadataUpdated: {
       type: Boolean,
       default: true,
+    },
+    lastChecked: {
+      type: Date,
+      default: null,
     },
   },
   {

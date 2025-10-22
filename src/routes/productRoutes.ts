@@ -6,10 +6,10 @@ import { ProductSchema } from "../models/Product";
 const productRouter = Router();
 
 // GET /products - Get all products
-productRouter.get("/products", getAllProducts);
+productRouter.get("/", getAllProducts);
 
 // POST /products - Create a new product (with validation)
-productRouter.post("/products/url", createProductByUrl);
-productRouter.post("/products", validate({ body: ProductSchema }), createProduct);
+productRouter.post("/url", createProductByUrl);
+productRouter.post("/", validate({ body: ProductSchema }), createProduct);
 
 export default productRouter;
