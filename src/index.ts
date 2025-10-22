@@ -1,11 +1,19 @@
 import express from "express";
+import cors from "cors";
 import os from "os";
 import productRouter from "./routes/productRoutes";
 import { connectDB } from "./config/dbConfig";
 import schedulerRouter from "./routes/schedulerRoutes";
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
+
+// CORS configuration
+app.use(cors({
+  origin: '*', // Allow all origins in development. In production, specify your frontend URL
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 
 app.use(express.json());
 

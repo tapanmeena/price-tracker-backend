@@ -166,7 +166,7 @@ pnpm start
 Create a `.env` file in the root directory:
 
 ```env
-PORT=3000
+PORT=3001
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=price_tracker
