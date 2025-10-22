@@ -44,11 +44,7 @@ export const createProduct = async (req: Request, res: Response) => {
 export const createProductByUrl = async (req: Request, res: Response) => {
   try {
     const { urls } = req.body;
-    const products = [];
-    for (const url of urls) {
-      const product = await productService.createProductByUrl(url);
-      products.push(product);
-    }
+    const products = await Promise.all(urls.map((url: string) => productService.createProductByUrl(url)));
 
     res.status(201).json({
       success: true,

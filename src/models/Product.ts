@@ -84,7 +84,7 @@ const productSchema = new Schema<IProduct>(
     domain: {
       type: String,
       required: true,
-      trime: true,
+      trim: true,
     },
     currency: {
       type: String,
