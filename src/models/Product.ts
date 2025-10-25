@@ -61,6 +61,10 @@ export interface IProduct extends Document {
   lastChecked?: Date;
   sku?: string;
   mpn?: string;
+  brand?: string;
+  articleType?: string;
+  subCategory?: string;
+  masterCategory?: string;
 }
 
 // MongoDB Schema
@@ -121,6 +125,22 @@ const productSchema = new Schema<IProduct>(
     mpn: {
       type: String,
     },
+    brand: {
+      type: String,
+      trim: true,
+    },
+    articleType: {
+      type: String,
+      trim: true,
+    },
+    subCategory: {
+      type: String,
+      trim: true,
+    },
+    masterCategory: {
+      type: String,
+      trim: true,
+    },
     doesMetadataUpdated: {
       type: Boolean,
       default: true,
@@ -136,7 +156,6 @@ const productSchema = new Schema<IProduct>(
 );
 
 // Create index for faster lookups
-productSchema.index({ url: 1 });
 productSchema.index({ name: 1 });
 productSchema.index({ availability: 1 });
 productSchema.index({ "priceHistory.date": -1 });

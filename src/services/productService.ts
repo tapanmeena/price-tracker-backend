@@ -5,18 +5,40 @@ import { getDomain } from "../utils/scraperUtils";
 
 class ProductService {
   // Create a new product
-  async createProduct(productData: { name: string; url: string; currentPrice: number; domain: string; targetPrice?: number }): Promise<IProduct> {
+  async createProduct(productData: {
+    name: string;
+    url: string;
+    currentPrice: number;
+    domain: string;
+    brand?: string;
+    targetPrice?: number;
+    image?: string;
+    productId: string;
+    articleType?: string;
+    subCategory?: string;
+    masterCategory?: string;
+  }): Promise<IProduct> {
     // Check if product with the same URL already exists
     const existingProduct = await this.findProductByUrl(productData.url);
 
     if (existingProduct) {
-      throw new Error("Product with this URL already exists");
+      // console.debug(`Product with URL ${productData.url} already exists.`);
+      // throw new Error("Product with this URL already exists");
+      return existingProduct;
     }
 
-    const domain = getDomain(productData.url) || "unknown.com";
-
     // Create and save the product
-    const product = new ProductModel({ ...productData, domain });
+    const product = new ProductModel({
+      ...productData,
+      sku: productData.productId,
+      mpn: productData.productId,
+      priceHistory: [{ price: productData.currentPrice, date: new Date() }],
+      currency: "INR",
+      availability: "InStock",
+      articleType: productData.articleType || "",
+      subCategory: productData.subCategory || "",
+      masterCategory: productData.masterCategory || "",
+    });
     return await product.save();
   }
 

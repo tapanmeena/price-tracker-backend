@@ -5,7 +5,7 @@ import { getDomain } from "../utils/scraperUtils";
 export const createProduct = async (req: Request, res: Response) => {
   try {
     // At this point, req.body is validated by the middleware
-    const { name, url, currentPrice, targetPrice } = req.body;
+    const { name, url, currentPrice, targetPrice, image, productId } = req.body;
 
     const domain = getDomain(url) || "unknown.com";
 
@@ -15,6 +15,8 @@ export const createProduct = async (req: Request, res: Response) => {
       domain,
       url,
       currentPrice,
+      image,
+      productId,
       targetPrice,
     });
 

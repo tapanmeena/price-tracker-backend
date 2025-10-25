@@ -35,7 +35,7 @@ schedulerRouter.get("/status", (req: Request, res: Response) => {
   }
 });
 
-schedulerRouter.post("/check-now", async (req: Request, res: Response) => {
+schedulerRouter.get("/check-now", async (req: Request, res: Response) => {
   try {
     await schedulerService.triggerManualPriceCheck();
     res.status(200).json({ success: true, message: "Manual price check triggered" });
