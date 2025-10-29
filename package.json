@@ -10,7 +10,8 @@
     "migrate": "npx ts-node scripts/migrate-data.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "test": "npx ts-node tests/api-compatibility.test.ts"
   },
   "keywords": [],
   "author": {
