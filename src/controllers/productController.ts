@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import productService from "../services/productService";
+import productService from "../services/productServicePostgres";
 import { getDomain } from "../utils/scraperUtils";
 
 export const createProduct = async (req: Request, res: Response) => {
