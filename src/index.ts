@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import os from "os";
 import productRouter from "./routes/productRoutes";
-import { connectDB } from "./config/dbConfig";
+import { connectPostgres } from "./config/postgresConfig";
 import schedulerRouter from "./routes/schedulerRoutes";
 import miscRouter from "./routes/miscRoutes";
 
@@ -25,8 +25,8 @@ app.use("/api/products", productRouter);
 app.use("/api/schedule", schedulerRouter);
 app.use("/api/misc", miscRouter);
 
-// Connect to MongoDB and start server
-connectDB().then(() => {
+// Connect to PostgreSQL and start server
+connectPostgres().then(() => {
   app.listen(PORT, () => {
     const networkInterfaces = os.networkInterfaces();
     const addresses = [];

@@ -2,6 +2,12 @@
 
 A backend service for tracking product prices across different e-commerce platforms.
 
+## 🎉 Database: PostgreSQL with Prisma ORM
+
+This backend uses **PostgreSQL** as the database with **Prisma** as the ORM for type-safe database access.
+
+> **Note**: This project was migrated from MongoDB to PostgreSQL. See [MIGRATION.md](./MIGRATION.md) for details.
+
 ## Project Structure
 
 ```
@@ -141,33 +147,102 @@ export const logger = {
 
 ## Getting Started
 
+### Prerequisites
+- Node.js (v16 or higher)
+- PostgreSQL (v12 or higher)
+
 ### Install Dependencies
 ```bash
-pnpm install
+npm install
+```
+
+### Setup Database
+
+1. **Start PostgreSQL** (if not already running)
+```bash
+# Using Docker
+docker run --name postgres-pricetracker \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=pricetracker \
+  -p 5432:5432 \
+  -d postgres:15
+```
+
+2. **Configure Environment Variables**
+
+Create a `.env` file in the root directory:
+```env
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/pricetracker?schema=public"
+PORT=3001
+```
+
+3. **Run Database Migrations**
+```bash
+npx prisma migrate dev
+```
+
+4. **Generate Prisma Client**
+```bash
+npx prisma generate
 ```
 
 ### Development
 ```bash
-pnpm dev
+npm run dev
 ```
 
 ### Build
 ```bash
-pnpm build
+npm run build
 ```
 
 ### Production
 ```bash
-pnpm start
+npm start
 ```
+
+## Database Management
+
+### View Database
+```bash
+npx prisma studio
+```
+
+### Create New Migration
+```bash
+npx prisma migrate dev --name your_migration_name
+```
+
+### Reset Database
+```bash
+npx prisma migrate reset
+```
+
+## Migration from MongoDB
+
+If you have existing data in MongoDB, run the migration script:
+
+```bash
+# Set MONGODB_URI in .env
+MONGODB_URI="mongodb://localhost:27017/priceTracker"
+
+# Run migration
+npx ts-node scripts/migrate-data.ts
+```
+
+See [MIGRATION.md](./MIGRATION.md) for complete migration guide.
 
 ## Environment Variables
 
 Create a `.env` file in the root directory:
 
 ```env
+# PostgreSQL Database URL
+DATABASE_URL="postgresql://username:password@localhost:5432/pricetracker?schema=public"
+
+# MongoDB (for migration only)
+MONGODB_URI="mongodb://localhost:27017/priceTracker"
+
+# Server Port
 PORT=3001
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=price_tracker
 ```

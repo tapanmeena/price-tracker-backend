@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "nodemon --watch src --ext ts --exec ts-node src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "migrate": "npx ts-node scripts/migrate-data.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio"
   },
   "keywords": [],
   "author": {
@@ -16,9 +20,11 @@
   "license": "ISC",
   "packageManager": "pnpm@10.17.0",
   "dependencies": {
+    "@prisma/client": "^6.18.0",
     "axios": "^1.12.2",
     "cheerio": "^1.1.2",
     "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "mongoose": "^8.19.2",
     "zod": "^4.1.12"
@@ -29,6 +35,7 @@
     "@types/node": "^24.9.1",
     "node-cron": "^4.2.1",
     "nodemon": "^3.1.10",
+    "prisma": "^6.18.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   }

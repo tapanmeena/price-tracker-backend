@@ -1,6 +1,6 @@
 import { Request, Response, Router } from "express";
 import { schedule } from "node-cron";
-import schedulerService from "../services/schedulerService";
+import schedulerService from "../services/schedulerServicePostgres";
 
 const schedulerRouter = Router();
 
