@@ -26,7 +26,19 @@ interface TestResult {
  * Normalize product data for comparison
  * MongoDB uses _id, PostgreSQL uses id
  */
-function normalizeProduct(product: any): any {
+interface NormalizedProduct {
+  name: string;
+  url: string;
+  domain: string;
+  currentPrice: number;
+  targetPrice?: number | null;
+  currency: string;
+  availability: string;
+  brand?: string | null;
+  priceHistoryCount: number;
+}
+
+function normalizeProduct(product: ProductWithPriceHistory | any): NormalizedProduct {
   return {
     name: product.name,
     url: product.url,
@@ -276,7 +288,8 @@ export function runAllTests(): void {
   }
 }
 
-// Run tests if executed directly
-if (require.main === module) {
+// Run tests if executed directly (compatible with both CommonJS and ES modules)
+const isMainModule = process.argv[1]?.includes('api-compatibility.test');
+if (isMainModule) {
   runAllTests();
 }
