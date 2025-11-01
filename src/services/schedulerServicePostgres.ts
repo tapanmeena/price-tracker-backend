@@ -87,13 +87,7 @@ class SchedulerServicePostgres {
       return;
     }
 
-    // Compare with target price
-    if (product.targetPrice !== undefined && product.targetPrice !== null && currentPrice <= product.targetPrice) {
-      // Send notification (email, SMS, etc.)
-      console.log(`Price drop alert for product ID ${product.id}: Current Price = ${currentPrice}, Target Price = ${product.targetPrice}`);
-    }
-
-    const priceChanged = product.currentPrice !== currentPrice;
+  const priceChanged = Number(product.currentPrice) !== currentPrice;
 
     // Prepare update data
     const updateData: any = {};
@@ -106,12 +100,15 @@ class SchedulerServicePostgres {
       updateData.availability = scrapedData.availability;
     }
 
-    // Update metadata if missed before
-    if (!product.doesMetadataUpdated) {
-      updateData.name = scrapedData.name || product.name;
-      updateData.image = scrapedData.image || product.image;
-      updateData.currency = scrapedData.currency || product.currency;
-      updateData.doesMetadataUpdated = true;
+    // Update basic metadata when available and changed
+    if (scrapedData.name && scrapedData.name !== product.name) {
+      updateData.name = scrapedData.name;
+    }
+    if (scrapedData.image && scrapedData.image !== product.image) {
+      updateData.image = scrapedData.image;
+    }
+    if (scrapedData.currency && scrapedData.currency !== product.currency) {
+      updateData.currency = scrapedData.currency;
     }
 
     // Update product if there are changes
@@ -121,7 +118,7 @@ class SchedulerServicePostgres {
 
     // Add to price history if price changed
     if (priceChanged) {
-      await productService.addPriceToHistory(product.id, currentPrice);
+      await productService.addPriceToHistory(product.id, currentPrice, scrapedData.availability);
     }
   }
 

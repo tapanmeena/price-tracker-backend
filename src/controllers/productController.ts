@@ -1,47 +1,5 @@
 import { Request, Response } from "express";
 import productService from "../services/productServicePostgres";
-import { getDomain } from "../utils/scraperUtils";
-
-export const createProduct = async (req: Request, res: Response) => {
-  try {
-    // At this point, req.body is validated by the middleware
-    const { name, url, currentPrice, targetPrice, image, productId } = req.body;
-
-    const domain = getDomain(url) || "unknown.com";
-
-    // Create product using service
-    const product = await productService.createProduct({
-      name,
-      domain,
-      url,
-      currentPrice,
-      image,
-      productId,
-      targetPrice,
-    });
-
-    res.status(201).json({
-      success: true,
-      message: "Product created successfully",
-      data: product,
-    });
-  } catch (error) {
-    // Handle duplicate product error
-    if (error instanceof Error && error.message === "Product with this URL already exists") {
-      return res.status(409).json({
-        success: false,
-        message: error.message,
-      });
-    }
-
-    // Handle other errors
-    console.error("Error creating product:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to create product",
-    });
-  }
-};
 
 export const createProductByUrl = async (req: Request, res: Response) => {
   try {

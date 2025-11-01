@@ -20,6 +20,12 @@ app.use(
 
 app.use(express.json());
 
+// Ensure JSON responses can serialize BigInt values (e.g., BIGSERIAL ids)
+// Express will pass this replacer into JSON.stringify under the hood
+app.set("json replacer", (_key: string, value: any) => {
+  return typeof value === "bigint" ? value.toString() : value;
+});
+
 // Routes
 app.use("/api/products", productRouter);
 app.use("/api/schedule", schedulerRouter);

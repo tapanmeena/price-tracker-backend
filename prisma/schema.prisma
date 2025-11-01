@@ -8,42 +8,94 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  schemas  = ["pricetracker"]
+}
+
+model User {
+  id           String            @id @default(uuid()) @db.Uuid
+  nickname     String            @db.VarChar(50)
+  email        String            @db.VarChar(255)
+  passwordHash String            @map("password_hash") @db.VarChar(255)
+  createdAt    DateTime          @default(now()) @map("created_at")
+  lastActive   DateTime?         @map("last_active")
+
+  favorites    FavoriteProduct[]
+  tracked      TrackedProduct[]
+
+  @@map("user")
+  @@schema("pricetracker")
+  @@index([email], map: "idx_user_email")
 }
 
 model Product {
-  id                  String         @id @default(uuid())
-  name                String
-  image               String?
-  url                 String         @unique
-  domain              String
-  currency            String         @default("INR")
-  availability        String         @default("InStock")
-  currentPrice        Float
-  targetPrice         Float?
-  sku                 String?
-  mpn                 String?
-  brand               String?
-  articleType         String?
-  subCategory         String?
-  masterCategory      String?
-  doesMetadataUpdated Boolean        @default(true)
-  lastChecked         DateTime?
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
-  priceHistory        PriceHistory[]
+  id              String            @id @default(uuid()) @db.Uuid
+  name            String            @db.VarChar(255)
+  image           String?           @db.Text
+  url             String            @unique @db.Text
+  domain          String            @db.VarChar(100)
+  currency        String            @db.VarChar(100)
+  currentPrice    Decimal           @map("current_price") @db.Decimal(10, 2)
+  availability    String?           @db.VarChar(50)
+  sku             String?           @db.VarChar(100)
+  mpn             String?           @db.VarChar(100)
+  brand           String?           @db.VarChar(100)
+  articleType     String?           @map("article_type") @db.VarChar(100)
+  subCategory     String?           @map("sub_category") @db.VarChar(100)
+  masterCategory  String?           @map("master_category") @db.VarChar(100)
+  lastCheckedAt   DateTime          @default(now()) @map("last_checked_at")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime?         @map("updated_at")
 
-  @@index([name])
-  @@index([availability])
-  @@index([createdAt])
+  priceHistory    PriceHistory[]
+  favoritedBy     FavoriteProduct[]
+  trackedBy       TrackedProduct[]
+
+  @@map("product")
+  @@schema("pricetracker")
+  @@index([brand], map: "idx_product_brand")
 }
 
 model PriceHistory {
-  id        String   @id @default(uuid())
-  price     Float
-  date      DateTime @default(now())
-  productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id          BigInt   @id @default(autoincrement()) @db.BigInt
+  productId   String   @map("product_id") @db.Uuid
+  price       Decimal  @db.Decimal(10, 2)
+  availability String? @db.VarChar(50)
+  checkedAt   DateTime @default(now()) @map("checked_at")
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  @@index([productId])
-  @@index([date(sort: Desc)])
+  @@map("price_history")
+  @@schema("pricetracker")
+  @@index([productId, checkedAt(sort: Desc)], map: "idx_price_history_product_time")
+}
+
+model FavoriteProduct {
+  userId      String  @map("user_id") @db.Uuid
+  productId   String  @map("product_id") @db.Uuid
+  favoritedAt DateTime @default(now()) @map("favorited_at")
+
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product     Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([userId, productId])
+  @@map("favorite_product")
+  @@schema("pricetracker")
+  @@index([productId], map: "idx_favorite_product_by_product")
+}
+
+model TrackedProduct {
+  userId         String   @map("user_id") @db.Uuid
+  productId      String   @map("product_id") @db.Uuid
+  targetPrice    Decimal? @map("target_price") @db.Decimal(10, 2)
+  notifyOnDrop   Boolean  @default(true) @map("notify_on_drop")
+  notifyOnRestock Boolean @default(false) @map("notify_on_restock")
+  isActive       Boolean  @default(true) @map("is_active")
+  trackStartDate DateTime @default(now()) @map("track_start_date")
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([userId, productId])
+  @@map("tracked_product")
+  @@schema("pricetracker")
+  @@index([userId], map: "idx_tracked_product_by_user")
 }

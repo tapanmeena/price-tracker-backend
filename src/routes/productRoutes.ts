@@ -1,7 +1,5 @@
 import { Router } from "express";
-import { createProduct, createProductByUrl, getAllProducts, getProductById } from "../controllers/productController";
-import { validate } from "../middlewares/validation";
-import { ProductSchema } from "../models/Product";
+import { createProductByUrl, getAllProducts, getProductById } from "../controllers/productController";
 
 const productRouter = Router();
 
@@ -9,8 +7,7 @@ const productRouter = Router();
 productRouter.get("/", getAllProducts);
 productRouter.get("/:id", getProductById);
 
-// POST /products - Create a new product (with validation)
+// POST /products - Create a new product
 productRouter.post("/url", createProductByUrl);
-productRouter.post("/", validate({ body: ProductSchema }), createProduct);
 
 export default productRouter;

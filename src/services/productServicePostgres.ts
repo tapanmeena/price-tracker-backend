@@ -15,12 +15,13 @@ class ProductServicePostgres {
     currentPrice: number;
     domain: string;
     brand?: string;
-    targetPrice?: number;
     image?: string;
     productId: string;
     articleType?: string;
     subCategory?: string;
     masterCategory?: string;
+    currency?: string;
+    availability?: string;
   }): Promise<ProductWithPriceHistory> {
     // Check if product with the same URL already exists
     const existingProduct = await this.findProductByUrl(productData.url);
@@ -37,7 +38,6 @@ class ProductServicePostgres {
         currentPrice: productData.currentPrice,
         domain: productData.domain,
         brand: productData.brand,
-        targetPrice: productData.targetPrice,
         image: productData.image,
         sku: productData.productId,
         mpn: productData.productId,
@@ -49,7 +49,8 @@ class ProductServicePostgres {
         priceHistory: {
           create: {
             price: productData.currentPrice,
-            date: new Date(),
+            checkedAt: new Date(),
+            availability: "InStock",
           },
         },
       },
@@ -84,11 +85,11 @@ class ProductServicePostgres {
         sku: scrapedData.sku,
         mpn: scrapedData.mpn,
         currentPrice: scrapedData.price || 0,
-        doesMetadataUpdated: true,
         priceHistory: {
           create: {
             price: scrapedData.price || 0,
-            date: new Date(),
+            checkedAt: new Date(),
+            availability: scrapedData.availability || "InStock",
           },
         },
       },
@@ -157,12 +158,13 @@ class ProductServicePostgres {
   }
 
   // Add price to history
-  async addPriceToHistory(productId: string, price: number): Promise<PriceHistory> {
+  async addPriceToHistory(productId: string, price: number, availability?: string | null): Promise<PriceHistory> {
     return await this.prisma.priceHistory.create({
       data: {
         productId,
         price,
-        date: new Date(),
+        checkedAt: new Date(),
+        availability: availability ?? undefined,
       },
     });
   }
@@ -176,7 +178,7 @@ class ProductServicePostgres {
         },
       },
       data: {
-        lastChecked: new Date(),
+        lastCheckedAt: new Date(),
       },
     });
   }
