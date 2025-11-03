@@ -1,10 +1,13 @@
 import express from "express";
+import cookieParser from "cookie-parser";
 import cors from "cors";
 import os from "os";
 import productRouter from "./routes/productRoutes";
-import { connectDB } from "./config/dbConfig";
+import { connectPostgres } from "./config/postgresConfig";
 import schedulerRouter from "./routes/schedulerRoutes";
 import miscRouter from "./routes/miscRoutes";
+import authRouter from "./routes/authRoutes";
+import env from "./config/env";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -12,21 +15,30 @@ const PORT = process.env.PORT || 3001;
 // CORS configuration
 app.use(
   cors({
-    origin: "*", // Allow all origins in development. In production, specify your frontend URL
+    origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
   })
 );
 
 app.use(express.json());
+app.use(cookieParser());
+
+// Ensure JSON responses can serialize BigInt values (e.g., BIGSERIAL ids)
+// Express will pass this replacer into JSON.stringify under the hood
+app.set("json replacer", (_key: string, value: any) => {
+  return typeof value === "bigint" ? value.toString() : value;
+});
 
 // Routes
 app.use("/api/products", productRouter);
 app.use("/api/schedule", schedulerRouter);
 app.use("/api/misc", miscRouter);
+app.use("/api/auth", authRouter);
 
-// Connect to MongoDB and start server
-connectDB().then(() => {
+// Connect to PostgreSQL and start server
+connectPostgres().then(() => {
   app.listen(PORT, () => {
     const networkInterfaces = os.networkInterfaces();
     const addresses = [];

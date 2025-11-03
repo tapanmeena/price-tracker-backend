@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import fetcherService from "../services/fetcherService";
-import productService from "../services/productService";
+import productService from "../services/productServicePostgres";
 import { getDomain } from "../utils/scraperUtils";
 
 export const fetchProducts = async (req: Request, res: Response) => {
