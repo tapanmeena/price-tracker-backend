@@ -1,16 +1,18 @@
 import { Router } from "express";
-import { createProduct, createProductByUrl, getAllProducts, getProductById } from "../controllers/productController";
-import { validate } from "../middlewares/validation";
-import { ProductSchema } from "../models/Product";
+import { createProductByUrl, getAllProducts, getProductById, searchProducts } from "../controllers/productController";
 
 const productRouter = Router();
 
-// GET /products - Get all products
+// GET /products - Get all products (with pagination)
 productRouter.get("/", getAllProducts);
+
+// GET /products/search - Search products with filters
+productRouter.get("/search", searchProducts);
+
+// GET /products/:id - Get product by ID
 productRouter.get("/:id", getProductById);
 
-// POST /products - Create a new product (with validation)
+// POST /products/url - Create a new product by URL
 productRouter.post("/url", createProductByUrl);
-productRouter.post("/", validate({ body: ProductSchema }), createProduct);
 
 export default productRouter;

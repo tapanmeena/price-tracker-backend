@@ -1,8 +1,11 @@
 import { Request, Response, Router } from "express";
-import { schedule } from "node-cron";
-import schedulerService from "../services/schedulerService";
+import { requireAuth } from "../middlewares/auth";
+import schedulerService from "../services/schedulerServicePostgres";
 
 const schedulerRouter = Router();
+
+// Apply authentication to all scheduler routes (admin only)
+schedulerRouter.use(requireAuth);
 
 schedulerRouter.post("/start", (req: Request, res: Response) => {
   try {

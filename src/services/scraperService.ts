@@ -1,5 +1,6 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import * as cheerio from "cheerio";
+import scraperConfig, { getRandomUserAgent, getSiteConfig, ScraperSiteConfig } from "../config/scraperConfig";
 import { getDomain, isValidUrl } from "../utils/scraperUtils";
 
 interface ScrapedProductData {
@@ -13,163 +14,144 @@ interface ScrapedProductData {
   mpn?: string;
 }
 
+interface FetchOptions {
+  retries?: number;
+  retryDelay?: number;
+}
+
 class ScraperService {
-  private readonly userAgent =
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-
   /**
-   * Fetch HTML content from a URL
+   * Sleep utility for delays between requests
    */
-  async fetchHTML(url: string): Promise<string> {
-    try {
-      const response = await axios.get(url, {
-        headers: {
-          "User-Agent": this.userAgent,
-          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-          "Accept-Language": "en-US,en;q=0.5",
-          "Accept-Encoding": "gzip, deflate, br",
-          Connection: "keep-alive",
-          "Upgrade-Insecure-Requests": "1",
-        },
-        timeout: 10000, // 10 seconds timeout
-      });
-
-      return response.data;
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        throw new Error(`Failed to fetch URL: ${error.message}`);
-      }
-      throw error;
-    }
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
-   * Parse HTML and extract product data
+   * Fetch HTML content from a URL with retry logic and user-agent rotation
+   */
+  async fetchHTML(url: string, options: FetchOptions = {}): Promise<string> {
+    const { retries = scraperConfig.maxRetries, retryDelay = scraperConfig.retryDelayMs } = options;
+
+    let lastError: Error | null = null;
+    let currentDelay = retryDelay;
+
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const userAgent = getRandomUserAgent();
+
+        const response = await axios.get(url, {
+          headers: {
+            "User-Agent": userAgent,
+            Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Accept-Encoding": "gzip, deflate, br",
+            Connection: "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+            "Cache-Control": "max-age=0",
+          },
+          timeout: scraperConfig.timeout,
+          maxRedirects: 5,
+          validateStatus: (status) => status >= 200 && status < 400,
+        });
+
+        return response.data;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        const isRetryable = this.isRetryableError(error);
+        const isLastAttempt = attempt === retries;
+
+        if (!isRetryable || isLastAttempt) {
+          break;
+        }
+
+        console.warn(`[Scraper] Attempt ${attempt}/${retries} failed for ${url}: ${lastError.message}. Retrying in ${currentDelay}ms...`);
+
+        await this.sleep(currentDelay);
+        currentDelay *= scraperConfig.retryBackoffMultiplier;
+      }
+    }
+
+    if (axios.isAxiosError(lastError)) {
+      throw new Error(`Failed to fetch URL after ${retries} attempts: ${lastError.message}`);
+    }
+    throw lastError || new Error("Unknown error occurred while fetching URL");
+  }
+
+  /**
+   * Check if an error is retryable
+   */
+  private isRetryableError(error: unknown): boolean {
+    if (axios.isAxiosError(error)) {
+      const axiosError = error as AxiosError;
+      // Retry on network errors, timeouts, and 5xx errors
+      if (!axiosError.response) return true; // Network error
+      const status = axiosError.response.status;
+      return status >= 500 || status === 429; // Server errors or rate limited
+    }
+    return false;
+  }
+
+  /**
+   * Parse HTML and extract product data using site-specific config
    */
   async scrapeProduct(url: string): Promise<ScrapedProductData> {
     const isValid = isValidUrl(url);
     if (!isValid) {
       throw new Error("Invalid URL provided for scraping");
     }
+
+    // Add delay between requests to avoid rate limiting
+    await this.sleep(scraperConfig.requestDelayMs);
+
     const html = await this.fetchHTML(url);
     const $ = cheerio.load(html);
+    const domainName = getDomain(url) || "";
+    const siteConfig = getSiteConfig(domainName);
 
-    const domainName = getDomain(url);
-
-    // Determine the e-commerce platform and use appropriate selectors
-    if (domainName?.includes("amazon")) {
-      return this.scrapeAmazon($);
-    } else if (domainName?.includes("flipkart")) {
-      return this.scrapeFlipkart($);
-    } else if (domainName?.includes("myntra")) {
-      return this.scrapeMyntra($);
-    } else {
-      return this.scrapeGeneric($);
+    // Use JSON-LD if configured for this site
+    if (siteConfig.useJsonLd) {
+      const jsonLdData = this.extractJsonLd($, siteConfig.jsonLdType);
+      if (jsonLdData && Object.keys(jsonLdData).length > 0) {
+        return jsonLdData;
+      }
     }
+
+    // Fall back to CSS selector scraping
+    return this.scrapeWithSelectors($, siteConfig);
   }
 
   /**
-   * Scrape Amazon product page
+   * Extract data from JSON-LD structured data
    */
-  private scrapeAmazon($: cheerio.CheerioAPI): ScrapedProductData {
-    const name = $("#productTitle").text().trim();
-
-    const priceWhole = $(".a-price-whole")
-      .first()
-      .text()
-      .replace(/[^0-9]/g, "");
-    const priceFraction = $(".a-price-fraction").first().text();
-    const priceText = priceWhole + (priceFraction || "");
-    const price = parseFloat(priceText) || undefined;
-
-    const currency = $(".a-price-symbol").first().text().trim() || "USD";
-
-    const availability = $("#availability span").text().trim() || "Unknown";
-
-    const image = $("#landingImage").attr("src") || $(".a-dynamic-image").first().attr("src");
-
-    const description = $("#feature-bullets").text().trim();
-
-    return {
-      name,
-      price,
-      currency,
-      availability,
-      image,
-      description,
-    };
-  }
-
-  /**
-   * Scrape Flipkart product page
-   */
-  private scrapeFlipkart($: cheerio.CheerioAPI): ScrapedProductData {
-    const name = $("span.VU-ZEz").text().trim() || $("h1.yhB1nd").text().trim();
-
-    const priceText =
-      $("div._30jeq3")
-        .text()
-        .replace(/[^0-9.]/g, "") ||
-      $("div.Nx9bqj")
-        .text()
-        .replace(/[^0-9.]/g, "");
-    const price = parseFloat(priceText) || undefined;
-
-    const currency = "INR";
-
-    const availability = $("div._16FRp0").text().trim() || "In Stock";
-
-    const image = $("img._396cs4").first().attr("src") || $("img._2r_T1I").first().attr("src");
-
-    const description = $("div._1mXcCf").text().trim();
-
-    return {
-      name,
-      price,
-      currency,
-      availability,
-      image,
-      description,
-    };
-  }
-
-  /**
-   * Scrape Myntra product page
-   */
-  private scrapeMyntra($: cheerio.CheerioAPI): ScrapedProductData {
+  private extractJsonLd($: cheerio.CheerioAPI, targetType?: string): ScrapedProductData {
     let scrapedData: ScrapedProductData = {};
-    $('script[type="application/ld+json"]').each((i, el) => {
+
+    $('script[type="application/ld+json"]').each((_, el) => {
       try {
         const scriptContent = $(el).html();
         if (!scriptContent) return;
-        // Parse the JSON content inside each <script> tag
+
         const jsonData = JSON.parse(scriptContent);
 
-        if (jsonData["@type"] === "Product") {
-          let name = jsonData["name"] || "";
-          let image = Array.isArray(jsonData["image"]) ? jsonData["image"][0] : jsonData["image"] || "";
-          let sku = jsonData["sku"] || "";
-          let mpn = jsonData["mpn"] || "";
-          let description = jsonData["description"] || "";
-          let price = jsonData["offers"]?.["price"] ? parseFloat(jsonData["offers"]["price"]) : undefined;
-          let currency = jsonData["offers"]?.["priceCurrency"] || "INR";
-          let availability = jsonData["offers"]?.["availability"] || "Unknown";
-
-          scrapedData = {
-            name,
-            image,
-            sku,
-            mpn,
-            description,
-            price,
-            currency,
-            availability,
-          };
-
-          return;
+        if (!targetType || jsonData["@type"] === targetType) {
+          if (jsonData["@type"] === "Product") {
+            scrapedData = {
+              name: jsonData["name"] || "",
+              image: Array.isArray(jsonData["image"]) ? jsonData["image"][0] : jsonData["image"] || "",
+              sku: jsonData["sku"] || "",
+              mpn: jsonData["mpn"] || "",
+              description: jsonData["description"] || "",
+              price: jsonData["offers"]?.["price"] ? parseFloat(jsonData["offers"]["price"]) : undefined,
+              currency: jsonData["offers"]?.["priceCurrency"] || "INR",
+              availability: jsonData["offers"]?.["availability"] || "Unknown",
+            };
+            return false; // Break the loop
+          }
         }
       } catch (error) {
-        console.error("Error parsing JSON-LD:", error);
+        console.error("[Scraper] Error parsing JSON-LD:", error);
       }
     });
 
@@ -177,35 +159,86 @@ class ScraperService {
   }
 
   /**
-   * Generic scraper for other websites
+   * Scrape using CSS selectors from site config
    */
-  private scrapeGeneric($: cheerio.CheerioAPI): ScrapedProductData {
-    // Try common selectors for title
-    const name = $('h1[itemprop="name"]').text().trim() || $('meta[property="og:title"]').attr("content") || $("h1").first().text().trim();
+  private scrapeWithSelectors($: cheerio.CheerioAPI, config: ScraperSiteConfig): ScrapedProductData {
+    const { selectors } = config;
 
-    // Try common selectors for price
-    const priceElement = $('[itemprop="price"]').attr("content") || $('[class*="price"]').first().text();
-    const price = priceElement ? parseFloat(priceElement.replace(/[^0-9.]/g, "")) : undefined;
-
-    // Try to get currency
-    const currency = $('[itemprop="priceCurrency"]').attr("content") || "USD";
-
-    // Try common selectors for image
-    const image = $('meta[property="og:image"]').attr("content") || $('img[itemprop="image"]').attr("src") || $("img").first().attr("src");
-
-    // Try common selectors for availability
-    const availability = $('[itemprop="availability"]').text().trim() || "Unknown";
-
-    const description = $('meta[name="description"]').attr("content") || $('[itemprop="description"]').text().trim();
+    const name = this.extractFirst($, selectors.name);
+    const priceText = this.extractFirst($, selectors.price);
+    const price = priceText ? parseFloat(priceText.replace(/[^0-9.]/g, "")) : undefined;
+    const currency = this.extractFirst($, selectors.currency) || (config.domain === "flipkart" ? "INR" : "USD");
+    const availability = this.extractFirst($, selectors.availability) || "Unknown";
+    const image = this.extractFirstAttr($, selectors.image, ["src", "content", "data-src"]);
+    const description = this.extractFirst($, selectors.description);
 
     return {
-      name,
-      price,
+      name: name || undefined,
+      price: price && !isNaN(price) ? price : undefined,
       currency,
       availability,
-      image,
-      description,
+      image: image || undefined,
+      description: description || undefined,
     };
+  }
+
+  /**
+   * Extract first matching text content from a list of selectors
+   */
+  private extractFirst($: cheerio.CheerioAPI, selectors: string[]): string | null {
+    for (const selector of selectors) {
+      // Handle meta tags specially
+      if (selector.startsWith("meta[")) {
+        const content = $(selector).attr("content");
+        if (content?.trim()) return content.trim();
+      } else {
+        const text = $(selector).first().text().trim();
+        if (text) return text;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Extract first matching attribute from a list of selectors
+   */
+  private extractFirstAttr($: cheerio.CheerioAPI, selectors: string[], attrs: string[]): string | null {
+    for (const selector of selectors) {
+      const el = $(selector).first();
+      for (const attr of attrs) {
+        const value = el.attr(attr);
+        if (value?.trim()) return value.trim();
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Scrape Amazon product page (legacy method for compatibility)
+   */
+  scrapeAmazon($: cheerio.CheerioAPI): ScrapedProductData {
+    return this.scrapeWithSelectors($, getSiteConfig("amazon"));
+  }
+
+  /**
+   * Scrape Flipkart product page (legacy method for compatibility)
+   */
+  scrapeFlipkart($: cheerio.CheerioAPI): ScrapedProductData {
+    return this.scrapeWithSelectors($, getSiteConfig("flipkart"));
+  }
+
+  /**
+   * Scrape Myntra product page (legacy method for compatibility)
+   */
+  scrapeMyntra($: cheerio.CheerioAPI): ScrapedProductData {
+    return this.extractJsonLd($, "Product");
+  }
+
+  /**
+   * Generic scraper (legacy method for compatibility)
+   */
+  scrapeGeneric($: cheerio.CheerioAPI): ScrapedProductData {
+    return this.scrapeWithSelectors($, getSiteConfig("generic"));
   }
 
   /**
@@ -213,11 +246,7 @@ class ScraperService {
    */
   extractTextContent(html: string): string {
     const $ = cheerio.load(html);
-
-    // Remove script and style elements
     $("script, style, noscript").remove();
-
-    // Get text content
     return $("body").text().replace(/\s+/g, " ").trim();
   }
 

@@ -1,10 +1,11 @@
+import { PriceHistory, Product } from "@prisma/client";
 import { schedule, ScheduledTask } from "node-cron";
-import productService from "./productService";
+import productService from "./productServicePostgres";
 import scraperService from "./scraperService";
-import { IProduct, ProductModel } from "../models/Product";
-import mongoose, { ObjectId } from "mongoose";
 
-class SchedulerService {
+type ProductWithPriceHistory = Product & { priceHistory: PriceHistory[] };
+
+class SchedulerServicePostgres {
   private priceCheckJob: ScheduledTask | null = null;
 
   /**
@@ -22,8 +23,7 @@ class SchedulerService {
 
     this.priceCheckJob = schedule(cronExpression, async () => {
       console.log("Running scheduled price check...");
-
-      // call checkall product prices function
+      await this.checkAllProductPrices();
     });
 
     console.log(`Price checker job scheduled with expression: ${cronExpression}`);
@@ -43,13 +43,13 @@ class SchedulerService {
   }
 
   private async checkAllProductPrices() {
-    // Fetch all products from DB
-    const products = await productService.getAllProducts();
+    // Fetch all products from DB (use unpaginated method for batch processing)
+    const products = await productService.getAllProductsUnpaginated();
     console.log(`Checking prices for ${products.length} products...`);
 
     let successCount = 0,
       failureCount = 0;
-    const successfulProductIds: ObjectId[] = [];
+    const successfulProductIds: string[] = [];
 
     const productPromises = [];
 
@@ -57,10 +57,10 @@ class SchedulerService {
       const promise = this.checkAndUpdateProductPrice(product)
         .then(() => {
           successCount++;
-          successfulProductIds.push(product._id as ObjectId);
+          successfulProductIds.push(product.id);
         })
         .catch((error) => {
-          console.error(`Error checking price for product ID ${product._id}:`, error);
+          console.error(`Error checking price for product ID ${product.id}:`, error);
           failureCount++;
         });
       productPromises.push(promise);
@@ -77,49 +77,49 @@ class SchedulerService {
     console.log(`Price check completed. Success: ${successCount}, Failures: ${failureCount}`);
   }
 
-  async checkAndUpdateProductPrice(product: IProduct) {
+  async checkAndUpdateProductPrice(product: ProductWithPriceHistory) {
     // Scrape current price
     const scrapedData = await scraperService.scrapeProduct(product.url);
     const currentPrice = scrapedData.price;
 
     if (currentPrice === undefined) {
-      console.debug(`Could not scrape price for product ID ${product._id}`);
+      console.debug(`Could not scrape price for product ID ${product.id}`);
       return;
     }
 
-    // Compare with target price
-    if (product.targetPrice !== undefined && currentPrice <= product.targetPrice) {
-      // Send notification (email, SMS, etc.)
-      console.log(`Price drop alert for product ID ${product._id}: Current Price = ${currentPrice}, Target Price = ${product.targetPrice}`);
-    }
+    const priceChanged = Number(product.currentPrice) !== currentPrice;
 
-    const priceChanged = product.currentPrice !== currentPrice;
+    // Prepare update data
+    const updateData: any = {};
 
     if (priceChanged) {
-      // Update Current price
-      product.currentPrice = currentPrice;
-
-      // Add to price history
-      product.priceHistory?.push({
-        price: currentPrice,
-        date: new Date(),
-      });
+      updateData.currentPrice = currentPrice;
     }
 
     if (scrapedData.availability && scrapedData.availability !== product.availability) {
-      product.availability = scrapedData.availability;
+      updateData.availability = scrapedData.availability;
     }
 
-    // update metadata if missed before
-    if (!product.doesMetadataUpdated) {
-      (product.name = scrapedData.name || product.name),
-        (product.image = scrapedData.image || product.image),
-        (product.currency = scrapedData.currency || product.currency),
-        (product.doesMetadataUpdated = true);
+    // Update basic metadata when available and changed
+    if (scrapedData.name && scrapedData.name !== product.name) {
+      updateData.name = scrapedData.name;
+    }
+    if (scrapedData.image && scrapedData.image !== product.image) {
+      updateData.image = scrapedData.image;
+    }
+    if (scrapedData.currency && scrapedData.currency !== product.currency) {
+      updateData.currency = scrapedData.currency;
     }
 
-    // Save updates to DB
-    await product.save();
+    // Update product if there are changes
+    if (Object.keys(updateData).length > 0) {
+      await productService.updateProduct(product.id, updateData);
+    }
+
+    // Add to price history if price changed
+    if (priceChanged) {
+      await productService.addPriceToHistory(product.id, currentPrice, scrapedData.availability);
+    }
   }
 
   async triggerManualPriceCheck() {
@@ -137,4 +137,4 @@ class SchedulerService {
   }
 }
 
-export default new SchedulerService();
+export default new SchedulerServicePostgres();

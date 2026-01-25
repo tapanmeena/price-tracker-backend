@@ -1,15 +1,15 @@
 import { Request, Response } from "express";
 import fetcherService from "../services/fetcherService";
-import productService from "../services/productService";
+import productService from "../services/productServicePostgres";
 import { getDomain } from "../utils/scraperUtils";
 
 export const fetchProducts = async (req: Request, res: Response) => {
   const products = await fetcherService.fetchMyntraProducts("Tshirts");
-  const totalCount = products.length > 0 ? products[0].totalCount ?? 0 : 0;
+  const totalCount = products.length > 0 ? (products[0].totalCount ?? 0) : 0;
   const domain = getDomain(products[0].productUrl) || "unknown.com";
 
   for (const product of products) {
-    productService.createProduct({
+    await productService.createProduct({
       name: product.productName,
       url: product.productUrl,
       currentPrice: product.price,
@@ -29,7 +29,7 @@ export const fetchProducts = async (req: Request, res: Response) => {
     products.push(...moreProducts);
 
     for (const product of moreProducts) {
-      productService.createProduct({
+      await productService.createProduct({
         name: product.productName,
         url: product.productUrl,
         currentPrice: product.price,
@@ -43,26 +43,11 @@ export const fetchProducts = async (req: Request, res: Response) => {
       });
     }
   }
-  // const domain = getDomain(products[0].productUrl) || "unknown.com";
-  // const allPromises = [];
-  // for (const product of products) {
-  //   const promise = productService.createProduct({
-  //     name: product.productName,
-  //     url: product.productUrl,
-  //     currentPrice: product.price,
-  //     domain,
-  //     brand: product.brand,
-  //     image: product.image,
-  //     productId: product.productId,
-  //   });
-  //   allPromises.push(promise);
-  // }
 
   console.log(`Fetched total ${products.length} products.`);
-  // await Promise.allSettled(allPromises);
-
-  // first product
-  console.log(`first product ${JSON.stringify(products[0])}`);
-  res.status(200).json({ success: true, message: "Product fetcher executed. Check server logs for details." });
+  res.status(200).json({
+    success: true,
+    message: "Product fetcher executed. Check server logs for details.",
+  });
   return;
 };
